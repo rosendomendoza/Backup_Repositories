@@ -93,3 +93,5 @@ Follow these steps to get the project up and running:
   `docker-compose exec web pytest`
 
 ## 🧪 Swagger API Documentation
+
+![image](https://github.com/user-attachments/assets/2bf609b5-77a7-4d82-a3d5-388c00afdb5a)
