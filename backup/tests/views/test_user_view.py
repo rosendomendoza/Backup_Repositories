@@ -17,29 +17,6 @@ def test_user():
 
 
 @pytest.mark.django_db
-def test_create_user_success(client, mocker):
-    mock_validate_github_user = mocker.patch(
-        "backup.github_utils.validate_github_user")
-    mock_validate_github_user.return_value.status_code = 200
-    mock_validate_github_user.return_value.json.return_value = {
-        "html_url": "https://github.com/newuser"}
-    url = reverse("users-list")
-    data = {"username": "newuser"}
-    response = client.post(url, data, format="json")
-    assert response.status_code == status.HTTP_201_CREATED
-    assert response.data["username"] == "newuser"
-
-
-@pytest.mark.django_db
-def test_create_user_already_exists(client, test_user):
-    url = reverse("users-list")
-    data = {"username": test_user.username}
-    response = client.post(url, data, format="json")
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert response.data["error"] == "User already exists in the database."
-
-
-@pytest.mark.django_db
 def test_fetch_user_success(client, test_user):
     url = reverse("users-fetch-user")
     response = client.get(url, {"username": test_user.username})

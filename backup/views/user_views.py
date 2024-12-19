@@ -1,3 +1,5 @@
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 from django.db import IntegrityError
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -7,35 +9,28 @@ from ..models.repository import Repository
 from ..serializers.user import UserSerializer
 from ..github_utils import validate_github_user
 
-
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
-    def create(self, request, *args, **kwargs):
-        username = request.data.get("username")
-        if not username:
-            return Response({"error": "The 'username' field is required."},
-                            status=status.HTTP_400_BAD_REQUEST)
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
-        if User.objects.filter(username=username).exists():
-            return Response({"error": "User already exists in the database."},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        response = validate_github_user(username)
-        if response.status_code == 200:
-            github_data = response.json()
-            user = User.objects.create(username=username,
-                                       github_url=github_data["html_url"])
-            serializer = UserSerializer(user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(
-                {"error": f"User '{username}' is not valid on GitHub."},
-                status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=False, methods=['get'], url_path='fetch',
-            name='users-fetch')
+    @swagger_auto_schema(
+        method='get',
+        manual_parameters=[
+            openapi.Parameter(
+                name='username',
+                in_=openapi.IN_QUERY,
+                type=openapi.TYPE_STRING,
+                description="The username to fetch from the database",
+                required=True
+            )
+        ],
+    )
+    @action(detail=False, methods=['get'], url_path='fetch', name='users-fetch')
     def fetch_user(self, request):
         username = request.query_params.get('username')
         if not username:
@@ -50,8 +45,21 @@ class UserViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": f"User '{username}' not found in the database."},
                 status=status.HTTP_404_NOT_FOUND)
-
-    @action(detail=False, methods=['post'], url_path='backup')
+            
+    @swagger_auto_schema(
+        method='post',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['username'],
+            properties={
+                'username': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="The username of the user to backup in the database"
+                )
+            }
+        ),
+    )
+    @action(detail=False, methods=['post'], url_path='backup', name='users-backup')
     def backup_user(self, request):
         username = request.data.get('username')
 
@@ -80,7 +88,20 @@ class UserViewSet(viewsets.ModelViewSet):
                 {"error": f"User '{username}' not found on GitHub."},
                 status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=False, methods=['delete'], url_path='delete_backup')
+    @swagger_auto_schema(
+        method='delete',
+        request_body=openapi.Schema(
+            type=openapi.TYPE_OBJECT,
+            required=['username'],
+            properties={
+                'username': openapi.Schema(
+                    type=openapi.TYPE_STRING,
+                    description="The username of the user to delete from the database"
+                )
+            }
+        ),
+    )
+    @action(detail=False, methods=['delete'], url_path='delete_backup', name='users-delete-backup')
     def delete_user_backup(self, request):
         username = request.data.get('username')
 
